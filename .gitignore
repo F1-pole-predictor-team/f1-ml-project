@@ -1,3 +1,32 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+
+# --- FastF1 Specific  ---
+f1_cache/
+*.pkl
+*.data
+
+# --- Database & Config ---
+.env
+config.py
+secrets.json
+
+# --- Data Science & Notebooks ---
+data/*.csv
+data/*.json
+data/*.xlsx
+.ipynb_checkpoints/
+
+# --- OS Specific ---
+.DS_Store
+Thumbs.db
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
