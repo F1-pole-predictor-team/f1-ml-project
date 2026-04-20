@@ -7,8 +7,6 @@ numpy>=1.26.0        # Mathematical operations and array handling
 
 # --- Database & SQL ---
 sqlalchemy>=2.0.0    # Python SQL toolkit and Object Relational Mapper
-pymysql>=1.1.0       # MySQL driver for Python (required by sqlalchemy)
-cryptography>=41.0.0 # Support for secure MySQL connections
 
 # --- Machine Learning ---
 scikit-learn>=1.3.0  # Preprocessing, scaling, and classic ML models
