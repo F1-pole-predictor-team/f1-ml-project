@@ -1,5 +1,5 @@
-CREATE TABLE IF NOT EXISTS raw_laps (
-    Driver TEXT,
+CREATE TABLE IF NOT EXISTS raw_laps ( --tworzy tabele jezeli nie istnieje
+    Driver TEXT, --nazwa kolumny i typ
     LapTime FLOAT,
     S1_time FLOAT,
     S2_time FLOAT,
