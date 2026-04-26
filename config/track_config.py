@@ -19,7 +19,7 @@ TRACK_TYPES = {
     'Suzuka': 'high_aero',
     'Zandvoort': 'high_aero',
     'Barcelona': 'high_aero',
-    'Lusail': 'high_aero',
+    'Qatar': 'high_aero',
 
     # Tory techniczne/zbalansowane
     'Bahrain': 'technical',
@@ -30,5 +30,8 @@ TRACK_TYPES = {
     'Imola': 'technical',
     'Montreal': 'technical',
     'Melbourne': 'technical',
-    'Spielberg': 'technical'
+    'Spielberg': 'technical',
+    'Mexico': 'technical',
+    'China': 'technical',
+    'France': 'technical'
 }
