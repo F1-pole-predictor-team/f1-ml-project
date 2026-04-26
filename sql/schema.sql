@@ -8,4 +8,12 @@ CREATE TABLE IF NOT EXISTS raw_laps ( --tworzy tabele jezeli nie istnieje
     Tyre_life FLOAT,
     Event_type TEXT,
     Event_name TEXT
-);
+    session_type TEXT #dodaje bo musimy widziec odzielnie FP1 FP2 itd. zeby dalo sie je odroznic
+    TrackTemp FLOAT); #od tej kolumny w dol najwaniejsze kolumny z pogoda
+    TrackTemp FLOAT,
+    AirTemp FLOAT,
+    Humidity FLOAT,
+    Pressure FLOAT,
+    WindSpeed FLOAT,
+    WindDirection FLOAT,
+    Rainfall BOOLEAN
