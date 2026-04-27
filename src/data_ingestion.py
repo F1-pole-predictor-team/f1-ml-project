@@ -20,11 +20,10 @@ def download_all_20242025sessions():
 
     seasons = [2024, 2025]
     for year in seasons:
-        print("Pobieranie kalendarza na sezon 2024 oraz 2025...")
+        print(f"Pobieranie kalendarza na sezon {year}...")
         schedule = fastf1.get_event_schedule(year)
         races = schedule[schedule['RoundNumber'] > 0]
 
-        # Pobiera Fp1,2,3 i Q zamiast tylko Q
         sessions_to_get = ['FP1', 'FP2', 'FP3', 'Q']
         for index, row in races.iterrows():
             event_name = row['EventName']
@@ -37,22 +36,34 @@ def download_all_20242025sessions():
                     session.load()
 
                     laps = session.laps.pick_quicklaps()
-                    dane_pogodowe = laps.get_weather_data() #dodajemy pogode do okrazen
+                    dane_pogodowe = laps.get_weather_data()
+
                     if laps.empty:
                         print(f"  Brak szybkich okrążeń dla {event_name} w sesji {session_type}. Pomijam.")
                         continue
 
+                    # ZMIANA 1: Dodanie 'SpeedST' do listy pobieranych kolumn
                     df_laps = laps[
-                        ['Driver', 'LapTime', 'Sector1Time', 'Sector2Time', 'Sector3Time', 'Compound', 'TyreLife']].copy()
-                     # Dodanie event_name i danych pogodowych do tabeli
+                        ['Driver', 'LapTime', 'Sector1Time', 'Sector2Time', 'Sector3Time', 'Compound', 'TyreLife',
+                         'SpeedST']
+                    ].copy()
+
                     df_laps['EventName'] = event_name
                     df_laps['SessionType'] = session_type
+
+                    # ZMIANA 2: Dodanie Pory dnia (Data i godzina sesji)
+                    df_laps['SessionDate'] = session.date
+
                     df_laps['TrackTemp'] = dane_pogodowe['TrackTemp'].values
                     df_laps['Humidity'] = dane_pogodowe['Humidity'].values
                     df_laps['AirTemp'] = dane_pogodowe['AirTemp'].values
                     df_laps['WindSpeed'] = dane_pogodowe['WindSpeed'].values
                     df_laps['WindDirection'] = dane_pogodowe['WindDirection'].values
                     df_laps['Rainfall'] = dane_pogodowe['Rainfall'].values
+
+                    # ZMIANA 3: Dodanie ciśnienia (Air Pressure)
+                    df_laps['AirPressure'] = dane_pogodowe['Pressure'].values
+
                     time_columns = ['LapTime', 'Sector1Time', 'Sector2Time', 'Sector3Time']
                     for col in time_columns:
                         df_laps[col] = df_laps[col].dt.total_seconds()
@@ -60,13 +71,12 @@ def download_all_20242025sessions():
                     df_laps.to_sql('raw_laps', con=engine, if_exists='append', index=False)
                     print(f" Zapisano sesję {session_type} do bazy.")
 
-                    #  Usypiamy skrypt na 2 sekundy, żeby nie dostać bana od API (limit 500 zapytań)
                     time.sleep(2)
 
                 except Exception as e:
                     print(f"   Błąd (pomijam tę sesję): {e}")
 
-    print("\n🏆 Pobieranie danych z całego sezonu (Treningi + Kwale) zakończone!")
+    print("\n🏆 Pobieranie danych z całego sezonu zakończone!")
 
 
 if __name__ == "__main__":
