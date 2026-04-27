@@ -12,13 +12,14 @@ def download_all_sessions():
     print("Resetowanie tabeli raw_laps w bazie danych...")
     engine = get_db_engine()
 
+        # w razie problemów z limitem api mozna pobierać sezony pojedyńczo
     seasons = [2022, 2023, 2024, 2025]
     for year in seasons:
         print(f"Pobieranie kalendarza na sezon {year}...")
         schedule = fastf1.get_event_schedule(year)
         races = schedule[schedule['RoundNumber'] > 0]
 
-        sessions_to_get = ['FP1', 'FP2', 'FP3', 'Q']
+        sessions_to_get = ['FP1', 'FP2', 'FP3', 'Q', 'SQ']
         for index, row in races.iterrows():
             event_name = row['EventName']
             print(f"--- Przetwarzanie weekendu: {year} - {event_name} ---")
@@ -40,15 +41,15 @@ def download_all_sessions():
                         continue
 
                     df_laps = laps[
-                        ['Driver', 'LapTime', 'Sector1Time', 'Sector2Time', 'Sector3Time', 'Compound', 'TyreLife',
+                        ['Driver',  'LapTime', 'Sector1Time', 'Sector2Time', 'Sector3Time', 'Compound', 'TyreLife', 'FreshTyre',
                          'SpeedST']
                     ].copy()
 
                     df_laps = pd.merge(df_laps, results, on="Driver", how="left")
-
+                    df_laps['FreshTyre'] = df_laps['FreshTyre'].astype(int)
                     df_laps['EventName'] = event_name
+                    df_laps['Year'] = year
                     df_laps['SessionType'] = session_type
-                    df_laps['SessionDate'] = session.date
                     df_laps['TrackTemp'] = dane_pogodowe['TrackTemp'].values
                     df_laps['Humidity'] = dane_pogodowe['Humidity'].values
                     df_laps['AirTemp'] = dane_pogodowe['AirTemp'].values
@@ -61,10 +62,10 @@ def download_all_sessions():
                     for col in time_columns:
                         df_laps[col] = df_laps[col].dt.total_seconds()
 
-                    df_laps.to_sql('raw_laps', con=engine, if_exists='replace', index=False)
+                    df_laps.to_sql('raw_laps', con=engine, if_exists='append', index=False)
                     print(f" Zapisano sesję {session_type} do bazy.")
 
-                    time.sleep(4)
+                    time.sleep(2)
 
                 except Exception as e:
                     print(f"   Błąd (pomijam tę sesję): {e}")
