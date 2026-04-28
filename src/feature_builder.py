@@ -15,6 +15,12 @@ def big_table():
     # 1. Czy to są jakiekolwiek kwalifikacje?
     raw_laps['IsQualifying'] = raw_laps['SessionType'].isin(qualy_sessions).astype(int)
     raw_laps['IsSprint'] = raw_laps['SessionType'].isin(sprint_sessions).astype(int)
+    # Obliczamy najszybszy czas dla każdego wyścigu/sesji
+    raw_laps['MinLapTime'] = raw_laps.groupby(['Year', 'EventName', 'SessionType'])['LapTime'].transform('min')
+    raw_laps['DeltaToLeader'] = raw_laps['LapTime'] - raw_laps['MinLapTime']
+    # Najpierw szukamy najszybszego czasu wewnątrz każdego zespołu w danej sesji
+    raw_laps['MinTeamTime'] = raw_laps.groupby(['Year','EventName','SessionType','Team_Name'])['LapTime'].transform('min')
+    raw_laps['DeltaToTeammate'] = raw_laps['LapTime'] - raw_laps['MinTeamTime']
 
     conditions = [
         (raw_laps['SessionType']== 'Q'),

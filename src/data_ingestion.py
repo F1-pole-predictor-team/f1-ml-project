@@ -44,11 +44,12 @@ def download_all_sessions():
                         continue
 
                     df_laps = laps[
-                        ['Driver',  'LapTime', 'Sector1Time', 'Sector2Time', 'Sector3Time', 'Compound', 'TyreLife', 'FreshTyre',
+                        ['Driver', 'Team', 'LapTime', 'Sector1Time', 'Sector2Time', 'Sector3Time', 'Compound', 'TyreLife', 'FreshTyre',
                          'SpeedST']
                     ].copy()
 
                     df_laps = pd.merge(df_laps, results, on="Driver", how="left")
+                    df_laps = df_laps.rename(columns={'Team': 'Team_Name'})
                     df_laps['FreshTyre'] = df_laps['FreshTyre'].astype(int)
                     df_laps['EventName'] = event_name
                     df_laps['Year'] = year
