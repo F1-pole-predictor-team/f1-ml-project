@@ -11,6 +11,9 @@ def download_all_sessions():
 
     print("Resetowanie tabeli raw_laps w bazie danych...")
     engine = get_db_engine()
+    with engine.connect() as con:
+        con.execute(text("DROP TABLE IF EXISTS raw_laps"))
+        con.commit()
 
         # w razie problemów z limitem api mozna pobierać sezony pojedyńczo
     seasons = [2022, 2023, 2024, 2025]
@@ -19,7 +22,7 @@ def download_all_sessions():
         schedule = fastf1.get_event_schedule(year)
         races = schedule[schedule['RoundNumber'] > 0]
 
-        sessions_to_get = ['FP1', 'FP2', 'FP3', 'Q', 'SQ']
+        sessions_to_get = ['FP1', 'FP2', 'FP3', 'Q', 'SQ', 'SS']
         for index, row in races.iterrows():
             event_name = row['EventName']
             print(f"--- Przetwarzanie weekendu: {year} - {event_name} ---")
