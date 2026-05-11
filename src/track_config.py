@@ -3,35 +3,35 @@
 
 TRACK_TYPES = {
     # Tory uliczne (Street)
-    'Monaco': 'street',
-    'Singapore': 'street',
-    'Las Vegas': 'street',
-    'Baku': 'street',
-    'Miami': 'street',
+    'Monaco Grand Prix': 'street',
+    'Singapore Grand Prix': 'street',
+    'Las Vegas Grand Prix': 'street',
+    'Azerbaijan Grand Prix': 'street',
+    'Miami Grand Prix': 'street',
 
     # Tory bardzo szybkie (High Speed)
-    'Monza': 'high_speed',
-    'Spa-Francorchamps': 'high_speed',
-    'Jeddah': 'high_speed',
+    'Italian Grand Prix': 'high_speed',
+    'Belgian Grand Prix': 'high_speed',
+    'Saudi Arabian Grand Prix': 'high_speed',
 
     # Tory wymagające dużego docisku (High Aero)
-    'Silverstone': 'high_aero',
-    'Suzuka': 'high_aero',
-    'Zandvoort': 'high_aero',
-    'Barcelona': 'high_aero',
-    'Qatar': 'high_aero',
+    'British Grand Prix': 'high_aero',
+    'Japanese Grand Prix': 'high_aero',
+    'Dutch Grand Prix': 'high_aero',
+    'Spanish Grand Prix': 'high_aero',
+    'Qatar Grand Prix': 'high_aero',
 
     # Tory techniczne/zbalansowane
-    'Bahrain': 'technical',
-    'Hungaroring': 'technical',
-    'Interlagos': 'technical',
-    'Austin': 'technical',
-    'Abu Dhabi': 'technical',
-    'Imola': 'technical',
-    'Montreal': 'technical',
-    'Melbourne': 'technical',
-    'Spielberg': 'technical',
-    'Mexico': 'technical',
-    'China': 'technical',
-    'France': 'technical'
+    'Bahrain Grand Prix': 'technical',
+    'Hungarian Grand Prix': 'technical',
+    'São Paulo Grand Prix': 'technical',
+    'United States Grand Prix': 'technical',
+    'Abu Dhabi Grand Prix': 'technical',
+    'Emilia Romagna Grand Prix': 'technical',
+    'Canadian Grand Prix': 'technical',
+    'Australian Grand Prix': 'technical',
+    'Austrian Grand Prix': 'technical',
+    'Mexico City Grand Prix': 'technical',
+    'Chinese Grand Prix': 'technical',
+    'French Grand Prix': 'technical'
 }
