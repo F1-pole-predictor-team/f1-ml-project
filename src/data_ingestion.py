@@ -24,6 +24,7 @@ def download_all_sessions():
         sessions_to_get = ['FP1', 'FP2', 'FP3', 'Q', 'SQ', 'SS']
         for index, row in races.iterrows():
             event_name = row['EventName']
+            round_number = row['RoundNumber']
             print(f"--- Przetwarzanie weekendu: {year} - {event_name} ---")
 
             for session_type in sessions_to_get:
@@ -48,6 +49,7 @@ def download_all_sessions():
                     df_laps['FreshTyre'] = df_laps['FreshTyre'].astype(int)
                     df_laps['EventName'] = event_name
                     df_laps['Year'] = year
+                    df_laps['RoundNumber'] = round_number
                     df_laps['SessionType'] = session_type
                     df_laps['TrackTemp'] = dane_pogodowe['TrackTemp'].values
                     df_laps['Humidity'] = dane_pogodowe['Humidity'].values
