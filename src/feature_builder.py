@@ -13,11 +13,9 @@ def big_table():
     raw_laps = pd.read_sql('SELECT * FROM raw_laps', engine)
 
     # Listy pomocnicze
-    qualy_sessions = ['Q', 'SQ', 'SS']
     sprint_sessions = ['SQ', 'SS']
 
-    #  Czy to są jakiekolwiek kwalifikacje?
-    raw_laps['IsQualifying'] = raw_laps['SessionType'].isin(qualy_sessions).astype(int)
+    #  Czy to weekend sprinterski
     raw_laps['IsSprint'] = raw_laps['SessionType'].isin(sprint_sessions).astype(int)
     # Obliczamy najszybszy czas dla każdego wyścigu/sesji
     raw_laps['MinLapTime'] = raw_laps.groupby(['Year', 'EventName', 'SessionType'])['LapTime'].transform('min')
@@ -50,6 +48,24 @@ def big_table():
     )
     qualy_history = qualy_history[['Year', 'EventName', 'Driver', 'RecentQForm']]
     raw_laps = pd.merge(raw_laps, qualy_history, on=['Year', 'EventName', 'Driver'], how='left')
+
+    # wynik w kwalifikacjach rok temu
+
+
+    # delta w kwalifikacjach rok temu
+
+
+    # punkty kierowcy z ostatnich 3 wyscigow
+
+
+    # punkty zespołu z ostatnich 3 wyscigow
+
+
+    # flaga na deszcz w trakcie weekendu
+
+
+    # średnia temperatura w sesji przed kwalifikacjami (IsSprint == 0 to FP3, IsSprint == 1 oraz Year <= 2023 to FP1, IsSprint == 1 oraz Year >= 2024 to SQ)
+
 
     return raw_laps
 
