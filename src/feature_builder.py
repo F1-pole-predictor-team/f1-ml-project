@@ -78,17 +78,76 @@ def big_table():
     # maksymalna prędkość podczas weekendu (speedtrap)
 
 
-    # punkty kierowcy z ostatnich 3 wyscigow
+
+    #  PUNKTY KIEROWCY Z OSTATNICH 3 WYŚCIGÓW
+
+    # Wczytujemy dane i upewniamy się, że punkty są liczbami
+    driver_st = pd.read_sql("SELECT season, round_after, Driver, points FROM driver_standings", engine)
+    driver_st['points'] = pd.to_numeric(driver_st['points'])
+    driver_st = driver_st.sort_values(by=['season', 'round_after'])
+
+    # Obliczamy punkty zdobyte tylko w konkretnym wyścigu (różnica runda do rundy)
+    driver_st['points_in_round'] = driver_st.groupby(['season', 'Driver'])['points'].diff().fillna(driver_st['points'])
+
+    # Sumujemy punkty z ostatnich 3 ukończonych wyścigów
+    driver_st['driver_points_last_3'] = driver_st.groupby(['season', 'Driver'])['points_in_round'].transform(
+        lambda x: x.rolling(window=3, min_periods=1).sum()
+    )
+    # Przygotowujemy klucze do złączenia z raw_laps (stan po rundzie R pasuje do weekendu R+1)
+    driver_st['Year'] = driver_st['season']
+    driver_st['RoundNumber'] = driver_st['round_after'] + 1
+
+    # Łączymy z główną tabelą (dla pierwszej rundy sezonu nie będzie poprzednich danych, więc uzupełniamy zerami)
+    raw_laps = raw_laps.merge(driver_st[['Year', 'RoundNumber', 'Driver', 'driver_points_last_3']],
+                              on=['Year', 'RoundNumber', 'Driver'], how='left').fillna({'driver_points_last_3': 0})
+
+    #  PUNKTY ZESPOŁU Z OSTATNICH 3 WYŚCIGÓW
+    # Dokładnie ta sama logika dla konstruktorów
+    constructor_st = pd.read_sql("SELECT season, round_after, TeamName, points FROM constructor_standings", engine)
+    constructor_st['points'] = pd.to_numeric(constructor_st['points'])
+    constructor_st = constructor_st.sort_values(by=['season', 'round_after'])
+
+    constructor_st['points_in_round'] = constructor_st.groupby(['season', 'TeamName'])['points'].diff().fillna(
+        constructor_st['points'])
+
+    constructor_st['team_points_last_3'] = constructor_st.groupby(['season', 'TeamName'])['points_in_round'].transform(
+        lambda x: x.rolling(window=3, min_periods=1).sum()
+    )
+
+    constructor_st['Year'] = constructor_st['season']
+    constructor_st['RoundNumber'] = constructor_st['round_after'] + 1
+
+    raw_laps = raw_laps.merge(constructor_st[['Year', 'RoundNumber', 'TeamName', 'team_points_last_3']],
+                              on=['Year', 'RoundNumber', 'TeamName'], how='left').fillna({'team_points_last_3': 0})
 
 
-    # punkty zespołu z ostatnich 3 wyscigow
+    # FLAGA NA DESZCZ W TRAKCIE WEEKENDU
 
+    # Sprawdzamy czy w jakiejkolwiek sesji danego weekendu Rainfall był większy od 0
+    raw_laps['WeekendRainFlag'] = raw_laps.groupby(['Year', 'EventName'])['Rainfall'].transform(
+        lambda x: (x > 0).max().astype(int)
+    )
 
-    # flaga na deszcz w trakcie weekendu
+    #  ŚREDNIA TEMPERATURA W SESJI PRZED KWALIFIKACJAMI
+    # Definiujemy maski dla sesji zgodnie z Twoimi regułami
+    mask_fp3 = (raw_laps['IsSprint'] == 0) & (raw_laps['SessionType'] == 'FP3')
+    mask_fp1_old = (raw_laps['IsSprint'] == 1) & (raw_laps['Year'] <= 2023) & (raw_laps['SessionType'] == 'FP1')
+    mask_sq_new = (raw_laps['IsSprint'] == 1) & (raw_laps['Year'] >= 2024) & (raw_laps['SessionType'] == 'SQ')
 
+    # Wycinamy tylko te konkretne sesje treningowe/kwalifikacyjne przed głównymi kwalifikacjami
+    pre_quali_sessions = raw_laps[mask_fp3 | mask_fp1_old | mask_sq_new]
 
-    # średnia temperatura w sesji przed kwalifikacjami (IsSprint == 0 to FP3, IsSprint == 1 oraz Year <= 2023 to FP1, IsSprint == 1 oraz Year >= 2024 to SQ)
+    # Obliczamy średnią temperaturę (możesz zmienić 'TrackTemp' na 'AirTemp' zależnie od preferencji)
+    avg_temp_df = pre_quali_sessions.groupby(['Year', 'EventName'])['TrackTemp'].mean().reset_index()
+    avg_temp_df = avg_temp_df.rename(columns={'TrackTemp': 'AvgPreQualiTemp'})
 
+    # Dołączamy nową cechę do tabeli raw_laps
+    raw_laps = raw_laps.merge(avg_temp_df, on=['Year', 'EventName'], how='left')
+
+    # Gdyby z jakiegoś powodu brakowało danych dla danej sesji, uzupełniamy ogólną średnią weekendu
+    raw_laps['AvgPreQualiTemp'] = raw_laps['AvgPreQualiTemp'].fillna(
+        raw_laps.groupby(['Year', 'EventName'])['TrackTemp'].transform('mean')
+    )
 
     return pivot_table
 
