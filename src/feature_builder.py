@@ -1,6 +1,6 @@
 import pandas as pd
 from database_utils import get_db_engine
-from track_config import TRACK_TYPES
+from dicts import TRACK_TYPES, TEAM_NAME_MAP
 
 
 def big_table():
@@ -43,31 +43,6 @@ def big_table():
     # delta do najszybszego kółka w sesji
     raw_laps['TheoreticalDelta'] = raw_laps['DriverTheoBest'] - raw_laps['TheoSessionBest']
 
-    # sortowanie by najszybsze okrążenia były u góry
-    raw_laps = raw_laps.sort_values(['Year', 'EventName', 'Driver', 'SessionType', 'SessionRank'])
-    # usunięcie duplikatów = zostają tylko najlepsze okrążenia każdego zawodnika z każdej sesji
-    best_laps = raw_laps.drop_duplicates(subset= ['Year', 'EventName', 'Driver', 'SessionType'], keep='first')
-
-    # obliczanie i implementacja formy w kwalifikacjach
-    qualy_history = best_laps[best_laps['SessionType'] == 'Q'][['Year', 'EventName', 'Driver', 'SessionRank', 'RoundNumber']].copy()
-    qualy_history = qualy_history.sort_values(['Year', 'RoundNumber'])
-    qualy_history['RecentQForm'] = qualy_history.groupby('Driver')['SessionRank'].transform(
-        lambda x: x.shift(1).rolling(window=3, min_periods=1).mean()
-    )
-    qualy_history = qualy_history[['Year', 'EventName', 'Driver', 'RecentQForm']]
-    best_laps = pd.merge(best_laps, qualy_history, on=['Year', 'EventName', 'Driver'], how='left')
-
-    # pivotowanie tabeli
-    pivot_table = best_laps.pivot_table(
-        index= ['Driver', 'TeamName', 'Year', 'EventName', 'IsSprint', 'RecentQForm', 'Track_high_aero', 'Track_high_speed', 'Track_street', 'Track_technical'],
-        columns= ['SessionType'],
-        values= ['SessionRank', 'DeltaToLeader', 'DeltaToTeammate', 'TheoreticalDelta'],
-    )
-    # spłaszczenie kolumn
-    pivot_table.columns = [f'{col[0]}_{col[1]}' for col in pivot_table.columns]
-    # reset indexów
-    pivot_table = pivot_table.reset_index()
-
 
     # wynik w kwalifikacjach rok temu
 
@@ -80,45 +55,65 @@ def big_table():
 
 
     #  PUNKTY KIEROWCY Z OSTATNICH 3 WYŚCIGÓW
+    # funkcja pomocnicza
+    def add_clean_round(df):
+        races = df[['season', 'round_after']].drop_duplicates().sort_values(['season', 'round_after']).copy()
+        races['CleanRound'] = races.groupby('season').cumcount() + 1
+        return df.merge(races, on=['season', 'round_after'], how='left')
 
-    # Wczytujemy dane i upewniamy się, że punkty są liczbami
+    # 0. MAPOWANIE SEKWENCJI WYŚCIGÓW DLA TABELI GŁÓWNEJ
+    races_raw = raw_laps[['Year', 'RoundNumber']].drop_duplicates().sort_values(['Year', 'RoundNumber']).copy()
+    races_raw['CleanRound'] = races_raw.groupby('Year').cumcount() + 1
+    raw_laps = raw_laps.merge(races_raw, on=['Year', 'RoundNumber'], how='left')
+
+    # 1. PUNKTY KIEROWCY Z OSTATNICH 3 WYŚCIGÓW
     driver_st = pd.read_sql("SELECT season, round_after, Driver, points FROM driver_standings", engine)
     driver_st['points'] = pd.to_numeric(driver_st['points'])
     driver_st = driver_st.sort_values(by=['season', 'round_after'])
-
-    # Obliczamy punkty zdobyte tylko w konkretnym wyścigu (różnica runda do rundy)
     driver_st['points_in_round'] = driver_st.groupby(['season', 'Driver'])['points'].diff().fillna(driver_st['points'])
-
-    # Sumujemy punkty z ostatnich 3 ukończonych wyścigów
     driver_st['driver_points_last_3'] = driver_st.groupby(['season', 'Driver'])['points_in_round'].transform(
         lambda x: x.rolling(window=3, min_periods=1).sum()
     )
-    # Przygotowujemy klucze do złączenia z raw_laps (stan po rundzie R pasuje do weekendu R+1)
+
+    # Wywołanie funkcji zamiast powtarzania kodu
+    driver_st = add_clean_round(driver_st)
     driver_st['Year'] = driver_st['season']
-    driver_st['RoundNumber'] = driver_st['round_after'] + 1
+    driver_st['NextCleanRound'] = driver_st['CleanRound'] + 1
 
-    # Łączymy z główną tabelą (dla pierwszej rundy sezonu nie będzie poprzednich danych, więc uzupełniamy zerami)
-    raw_laps = raw_laps.merge(driver_st[['Year', 'RoundNumber', 'Driver', 'driver_points_last_3']],
-                              on=['Year', 'RoundNumber', 'Driver'], how='left').fillna({'driver_points_last_3': 0})
+    # Łączymy po bezpiecznej sekwencji i od razu czyścimy NextCleanRound
+    raw_laps = raw_laps.merge(
+        driver_st[['Year', 'NextCleanRound', 'Driver', 'driver_points_last_3']],
+        left_on=['Year', 'CleanRound', 'Driver'],
+        right_on=['Year', 'NextCleanRound', 'Driver'],
+        how='left'
+    ).drop(columns=['NextCleanRound'])
+    raw_laps['driver_points_last_3'] = raw_laps['driver_points_last_3'].fillna(0)
 
-    #  PUNKTY ZESPOŁU Z OSTATNICH 3 WYŚCIGÓW
-    # Dokładnie ta sama logika dla konstruktorów
+    # 2. PUNKTY ZESPOŁU Z OSTATNICH 3 WYŚCIGÓW
     constructor_st = pd.read_sql("SELECT season, round_after, TeamName, points FROM constructor_standings", engine)
     constructor_st['points'] = pd.to_numeric(constructor_st['points'])
     constructor_st = constructor_st.sort_values(by=['season', 'round_after'])
-
     constructor_st['points_in_round'] = constructor_st.groupby(['season', 'TeamName'])['points'].diff().fillna(
         constructor_st['points'])
-
     constructor_st['team_points_last_3'] = constructor_st.groupby(['season', 'TeamName'])['points_in_round'].transform(
         lambda x: x.rolling(window=3, min_periods=1).sum()
     )
 
+    # Ponowne użycie tej samej funkcji
+    constructor_st = add_clean_round(constructor_st)
     constructor_st['Year'] = constructor_st['season']
-    constructor_st['RoundNumber'] = constructor_st['round_after'] + 1
+    constructor_st['NextCleanRound'] = constructor_st['CleanRound'] + 1
 
-    raw_laps = raw_laps.merge(constructor_st[['Year', 'RoundNumber', 'TeamName', 'team_points_last_3']],
-                              on=['Year', 'RoundNumber', 'TeamName'], how='left').fillna({'team_points_last_3': 0})
+    raw_laps['TeamSlug'] = raw_laps['TeamName'].map(TEAM_NAME_MAP)
+    constructor_st = constructor_st.rename(columns={'TeamName': 'TeamSlug'})
+
+    raw_laps = raw_laps.merge(
+        constructor_st[['Year', 'NextCleanRound', 'TeamSlug', 'team_points_last_3']],
+        left_on=['Year', 'CleanRound', 'TeamSlug'],
+        right_on=['Year', 'NextCleanRound', 'TeamSlug'],
+        how='left'
+    ).drop(columns=['NextCleanRound'])
+    raw_laps['team_points_last_3'] = raw_laps['team_points_last_3'].fillna(0)
 
 
     # FLAGA NA DESZCZ W TRAKCIE WEEKENDU
@@ -149,7 +144,43 @@ def big_table():
         raw_laps.groupby(['Year', 'EventName'])['TrackTemp'].transform('mean')
     )
 
+    # sortowanie by najszybsze okrążenia były u góry
+    raw_laps = raw_laps.sort_values(['Year', 'EventName', 'Driver', 'SessionType', 'SessionRank'])
+    # usunięcie duplikatów = zostają tylko najlepsze okrążenia każdego zawodnika z każdej sesji
+    best_laps = raw_laps.drop_duplicates(subset=['Year', 'EventName', 'Driver', 'SessionType'], keep='first').copy()
+
+    # obliczanie i implementacja formy w kwalifikacjach
+    qualy_history = best_laps[best_laps['SessionType'] == 'Q'][
+        ['Year', 'EventName', 'Driver', 'SessionRank', 'RoundNumber']].copy()
+    qualy_history = qualy_history.sort_values(['Year', 'RoundNumber'])
+    qualy_history['RecentQForm'] = qualy_history.groupby('Driver')['SessionRank'].transform(
+        lambda x: x.shift(1).rolling(window=3, min_periods=1).mean()
+    )
+    qualy_history = qualy_history[['Year', 'EventName', 'Driver', 'RecentQForm']]
+    best_laps = pd.merge(best_laps, qualy_history, on=['Year', 'EventName', 'Driver'], how='left')
+
+    # Dynamicznie łapiemy wszystkie kolumny One-Hot Encodingu dla torów
+    track_cols = [col for col in best_laps.columns if str(col).startswith('Track_')]
+
+    # Budujemy pancerne indeksy dla Pivota (w tym nowe zabawki od kolegi)
+    pivot_index = [
+                      'Driver', 'TeamName', 'Year', 'EventName', 'IsSprint', 'RecentQForm',
+                      'driver_points_last_3', 'team_points_last_3', 'WeekendRainFlag', 'AvgPreQualiTemp'
+                  ] + track_cols
+
+    # pivotowanie tabeli
+    pivot_table = best_laps.pivot_table(
+        index=pivot_index,
+        columns=['SessionType'],
+        values=['SessionRank', 'DeltaToLeader', 'DeltaToTeammate', 'TheoreticalDelta'],
+    )
+    # spłaszczenie kolumn
+    pivot_table.columns = [f'{col[0]}_{col[1]}' for col in pivot_table.columns]
+    # reset indexów
+    pivot_table = pivot_table.reset_index()
+
     return pivot_table
+
 
 
 if __name__ == "__main__":

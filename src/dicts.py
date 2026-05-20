@@ -35,3 +35,19 @@ TRACK_TYPES = {
     'Chinese Grand Prix': 'technical',
     'French Grand Prix': 'technical'
 }
+
+TEAM_NAME_MAP = {
+    'Haas F1 Team': 'haas',
+    'Alfa Romeo': 'alfa',
+    'Alpine': 'alpine',
+    'Aston Martin': 'aston_martin',
+    'Williams': 'williams',
+    'Ferrari': 'ferrari',
+    'Mercedes': 'mercedes',
+    'Red Bull Racing': 'red_bull',
+    'McLaren': 'mclaren',
+    'AlphaTauri': 'alphatauri',
+    'Kick Sauber': 'sauber',
+    'RB': 'rb',
+    'Racing Bulls': 'rb'
+}
