@@ -10,26 +10,29 @@ def big_table():
     # Listy pomocnicze
     sprint_sessions = ['SQ', 'SS']
 
-    #  Czy to weekend sprinterski
+    # Czy to weekend sprinterski
     raw_laps['IsSprint'] = raw_laps['SessionType'].isin(sprint_sessions).astype(int)
     raw_laps['IsSprint'] = raw_laps.groupby(['Year', 'EventName'])['IsSprint'].transform('max')
 
     # najszybszy czas kazdego kierowcy w sesji
-    raw_laps['DriverBestLap'] = raw_laps.groupby(['Year', 'EventName', 'SessionType', 'Driver'])['LapTime'].transform('min')
+    raw_laps['DriverBestLap'] = raw_laps.groupby(['Year', 'EventName', 'SessionType', 'Driver'])['LapTime'].transform(
+        'min')
 
     # Obliczamy najszybszy czas dla każdego wyścigu/sesji
     raw_laps['MinLapTime'] = raw_laps.groupby(['Year', 'EventName', 'SessionType'])['LapTime'].transform('min')
-    raw_laps['SessionRank'] = raw_laps.groupby(['Year', 'EventName', 'SessionType'])['DriverBestLap'].rank(method='dense')
+    raw_laps['SessionRank'] = raw_laps.groupby(['Year', 'EventName', 'SessionType'])['DriverBestLap'].rank(
+        method='dense')
     raw_laps['DeltaToLeader'] = raw_laps['DriverBestLap'] - raw_laps['MinLapTime']
 
     # Najpierw szukamy najszybszego czasu wewnątrz każdego zespołu w danej sesji
-    raw_laps['MinTeamTime'] = raw_laps.groupby(['Year','EventName','SessionType','TeamName'])['LapTime'].transform('min')
+    raw_laps['MinTeamTime'] = raw_laps.groupby(['Year', 'EventName', 'SessionType', 'TeamName'])['LapTime'].transform(
+        'min')
     raw_laps['DeltaToTeammate'] = raw_laps['DriverBestLap'] - raw_laps['MinTeamTime']
 
     # mapowanie słownika
     raw_laps['TrackType'] = raw_laps['EventName'].map(TRACK_TYPES)
     # one hot encoding, tworzy kolumny dla kazdego typu toru i wstawia 0 i 1
-    raw_laps = pd.get_dummies(raw_laps, columns=['TrackType'], prefix='Track', dtype ='int')
+    raw_laps = pd.get_dummies(raw_laps, columns=['TrackType'], prefix='Track', dtype='int')
 
     # najszybsze sektory w danej sesji
     group_driver = ['Year', 'EventName', 'SessionType', 'Driver']
@@ -39,22 +42,15 @@ def big_table():
     # najszybsze teoretyczne kółko kierowcy w danej sesji
     raw_laps['DriverTheoBest'] = raw_laps['Best_S1'] + raw_laps['Best_S2'] + raw_laps['Best_S3']
     # najszybsze teoretyczne kółko w danej sesji
-    raw_laps['TheoSessionBest'] = raw_laps.groupby(['Year', 'EventName', 'SessionType'])['DriverTheoBest'].transform('min')
+    raw_laps['TheoSessionBest'] = raw_laps.groupby(['Year', 'EventName', 'SessionType'])['DriverTheoBest'].transform(
+        'min')
     # delta do najszybszego kółka w sesji
     raw_laps['TheoreticalDelta'] = raw_laps['DriverTheoBest'] - raw_laps['TheoSessionBest']
 
+    # --- MAKSYMALNA PRĘDKOŚĆ PODCZAS WEEKENDU (Speedtrap) ---
+    raw_laps['MaxSpeedST'] = raw_laps.groupby(['Year', 'EventName', 'Driver'])['SpeedST'].transform('max')
 
-    # wynik w kwalifikacjach rok temu
-
-
-    # delta w kwalifikacjach rok temu
-
-
-    # maksymalna prędkość podczas weekendu (speedtrap)
-
-
-
-    #  PUNKTY KIEROWCY Z OSTATNICH 3 WYŚCIGÓW
+    # --- PUNKTY KIEROWCY Z OSTATNICH 3 WYŚCIGÓW ---
     # funkcja pomocnicza
     def add_clean_round(df):
         races = df[['season', 'round_after']].drop_duplicates().sort_values(['season', 'round_after']).copy()
@@ -66,7 +62,7 @@ def big_table():
     races_raw['CleanRound'] = races_raw.groupby('Year').cumcount() + 1
     raw_laps = raw_laps.merge(races_raw, on=['Year', 'RoundNumber'], how='left')
 
-    # 1. PUNKTY KIEROWCY Z OSTATNICH 3 WYŚCIGÓW
+    # 1. PUNKTY KIEROWCY
     driver_st = pd.read_sql("SELECT season, round_after, Driver, points FROM driver_standings", engine)
     driver_st['points'] = pd.to_numeric(driver_st['points'])
     driver_st = driver_st.sort_values(by=['season', 'round_after'])
@@ -75,12 +71,10 @@ def big_table():
         lambda x: x.rolling(window=3, min_periods=1).sum()
     )
 
-    # Wywołanie funkcji zamiast powtarzania kodu
     driver_st = add_clean_round(driver_st)
     driver_st['Year'] = driver_st['season']
     driver_st['NextCleanRound'] = driver_st['CleanRound'] + 1
 
-    # Łączymy po bezpiecznej sekwencji i od razu czyścimy NextCleanRound
     raw_laps = raw_laps.merge(
         driver_st[['Year', 'NextCleanRound', 'Driver', 'driver_points_last_3']],
         left_on=['Year', 'CleanRound', 'Driver'],
@@ -89,7 +83,7 @@ def big_table():
     ).drop(columns=['NextCleanRound'])
     raw_laps['driver_points_last_3'] = raw_laps['driver_points_last_3'].fillna(0)
 
-    # 2. PUNKTY ZESPOŁU Z OSTATNICH 3 WYŚCIGÓW
+    # 2. PUNKTY ZESPOŁU
     constructor_st = pd.read_sql("SELECT season, round_after, TeamName, points FROM constructor_standings", engine)
     constructor_st['points'] = pd.to_numeric(constructor_st['points'])
     constructor_st = constructor_st.sort_values(by=['season', 'round_after'])
@@ -99,7 +93,6 @@ def big_table():
         lambda x: x.rolling(window=3, min_periods=1).sum()
     )
 
-    # Ponowne użycie tej samej funkcji
     constructor_st = add_clean_round(constructor_st)
     constructor_st['Year'] = constructor_st['season']
     constructor_st['NextCleanRound'] = constructor_st['CleanRound'] + 1
@@ -115,41 +108,33 @@ def big_table():
     ).drop(columns=['NextCleanRound'])
     raw_laps['team_points_last_3'] = raw_laps['team_points_last_3'].fillna(0)
 
-
-    # FLAGA NA DESZCZ W TRAKCIE WEEKENDU
-
-    # Sprawdzamy czy w jakiejkolwiek sesji danego weekendu Rainfall był większy od 0
+    # --- FLAGA NA DESZCZ W TRAKCIE WEEKENDU ---
     raw_laps['WeekendRainFlag'] = raw_laps.groupby(['Year', 'EventName'])['Rainfall'].transform(
         lambda x: (x > 0).max().astype(int)
     )
 
-    #  ŚREDNIA TEMPERATURA W SESJI PRZED KWALIFIKACJAMI
-    # Definiujemy maski dla sesji zgodnie z Twoimi regułami
+    # --- ŚREDNIA TEMPERATURA W SESJI PRZED KWALIFIKACJAMI ---
     mask_fp3 = (raw_laps['IsSprint'] == 0) & (raw_laps['SessionType'] == 'FP3')
     mask_fp1_old = (raw_laps['IsSprint'] == 1) & (raw_laps['Year'] <= 2023) & (raw_laps['SessionType'] == 'FP1')
     mask_sq_new = (raw_laps['IsSprint'] == 1) & (raw_laps['Year'] >= 2024) & (raw_laps['SessionType'] == 'SQ')
 
-    # Wycinamy tylko te konkretne sesje treningowe/kwalifikacyjne przed głównymi kwalifikacjami
     pre_quali_sessions = raw_laps[mask_fp3 | mask_fp1_old | mask_sq_new]
 
-    # Obliczamy średnią temperaturę (możesz zmienić 'TrackTemp' na 'AirTemp' zależnie od preferencji)
     avg_temp_df = pre_quali_sessions.groupby(['Year', 'EventName'])['TrackTemp'].mean().reset_index()
     avg_temp_df = avg_temp_df.rename(columns={'TrackTemp': 'AvgPreQualiTemp'})
 
-    # Dołączamy nową cechę do tabeli raw_laps
     raw_laps = raw_laps.merge(avg_temp_df, on=['Year', 'EventName'], how='left')
-
-    # Gdyby z jakiegoś powodu brakowało danych dla danej sesji, uzupełniamy ogólną średnią weekendu
     raw_laps['AvgPreQualiTemp'] = raw_laps['AvgPreQualiTemp'].fillna(
         raw_laps.groupby(['Year', 'EventName'])['TrackTemp'].transform('mean')
     )
 
+    # --- PRZYGOTOWANIE DO PIVOTA ---
     # sortowanie by najszybsze okrążenia były u góry
     raw_laps = raw_laps.sort_values(['Year', 'EventName', 'Driver', 'SessionType', 'SessionRank'])
-    # usunięcie duplikatów = zostają tylko najlepsze okrążenia każdego zawodnika z każdej sesji
+    # usunięcie duplikatów
     best_laps = raw_laps.drop_duplicates(subset=['Year', 'EventName', 'Driver', 'SessionType'], keep='first').copy()
 
-    # obliczanie i implementacja formy w kwalifikacjach
+    # obliczanie formy w kwalifikacjach
     qualy_history = best_laps[best_laps['SessionType'] == 'Q'][
         ['Year', 'EventName', 'Driver', 'SessionRank', 'RoundNumber']].copy()
     qualy_history = qualy_history.sort_values(['Year', 'RoundNumber'])
@@ -159,36 +144,42 @@ def big_table():
     qualy_history = qualy_history[['Year', 'EventName', 'Driver', 'RecentQForm']]
     best_laps = pd.merge(best_laps, qualy_history, on=['Year', 'EventName', 'Driver'], how='left')
 
-    # Dynamicznie łapiemy wszystkie kolumny One-Hot Encodingu dla torów
+    # Kolumny typów toru
     track_cols = [col for col in best_laps.columns if str(col).startswith('Track_')]
 
-    # Budujemy pancerne indeksy dla Pivota (w tym nowe zabawki od kolegi)
+    # Indeksy Pivota z uwzględnieniem nowej kolumny MaxSpeedST
     pivot_index = [
                       'Driver', 'TeamName', 'Year', 'EventName', 'IsSprint', 'RecentQForm',
-                      'driver_points_last_3', 'team_points_last_3', 'WeekendRainFlag', 'AvgPreQualiTemp'
+                      'driver_points_last_3', 'team_points_last_3', 'WeekendRainFlag', 'AvgPreQualiTemp',
+                      'MaxSpeedST'
                   ] + track_cols
 
-    # pivotowanie tabeli
+    # Pivotowanie
     pivot_table = best_laps.pivot_table(
         index=pivot_index,
         columns=['SessionType'],
         values=['SessionRank', 'DeltaToLeader', 'DeltaToTeammate', 'TheoreticalDelta'],
     )
-    # spłaszczenie kolumn
+
+    # Spłaszczenie kolumn i reset indeksów
     pivot_table.columns = [f'{col[0]}_{col[1]}' for col in pivot_table.columns]
-    # reset indexów
     pivot_table = pivot_table.reset_index()
+
+    # --- WYNIK I DELTA W KWALIFIKACJACH ROK TEMU (Podróż w czasie) ---
+    q_last_year = best_laps[best_laps['SessionType'] == 'Q'][
+        ['Year', 'EventName', 'Driver', 'SessionRank', 'DeltaToLeader']].copy()
+    q_last_year['Year'] = q_last_year['Year'] + 1
+    q_last_year = q_last_year.rename(columns={
+        'SessionRank': 'Q_Rank_LastYear',
+        'DeltaToLeader': 'Q_Delta_LastYear'
+    })
+
+    # Ostatni merge łączący rok zeszły z obecnym
+    pivot_table = pd.merge(pivot_table, q_last_year, on=['Year', 'EventName', 'Driver'], how='left')
 
     return pivot_table
 
 
-
 if __name__ == "__main__":
     tabela = big_table()
-    print("Tabela gotowa")
-
-# test skutecznosci = z sprintami i bez
-
-# opcje przewidywania:
-# 1. przewidywanie zwycięzcy (target is_pole, procentowe szanse dla kazdego)
-# 2. przewidywanie straty do lidera (delty) (target DeltaToLeader_Q, delta dla kazdego)
+    print("Tabela gotowa!")
