@@ -2,7 +2,6 @@ import time
 import fastf1
 import pandas as pd
 from database_utils import get_db_engine, setup_fastf1_cache
-from pathlib import Path
 from sqlalchemy import text
 
 
@@ -25,6 +24,7 @@ def download_all_sessions():
         sessions_to_get = ['FP1', 'FP2', 'FP3', 'Q', 'SQ', 'SS']
         for index, row in races.iterrows():
             event_name = row['EventName']
+            round_number = row['RoundNumber']
             print(f"--- Przetwarzanie weekendu: {year} - {event_name} ---")
 
             for session_type in sessions_to_get:
@@ -32,9 +32,6 @@ def download_all_sessions():
                     print(f"  -> Pobieranie sesji: {session_type}...")
                     session = fastf1.get_session(year, event_name, session_type)
                     session.load()
-
-                    results = session.results[["Abbreviation", "Position"]].copy()
-                    results = results.rename(columns={"Position": "FinalPosition", "Abbreviation": "Driver"})
 
                     laps = session.laps.pick_quicklaps()
                     dane_pogodowe = laps.get_weather_data()
@@ -44,15 +41,15 @@ def download_all_sessions():
                         continue
 
                     df_laps = laps[
-                        ['Driver', 'Team', 'LapTime', 'Sector1Time', 'Sector2Time', 'Sector3Time', 'Compound', 'TyreLife', 'FreshTyre',
-                         'SpeedST']
+                        ['Driver', 'Team', 'LapTime', 'Sector1Time', 'Sector2Time',
+                         'Sector3Time', 'Compound','TyreLife', 'FreshTyre','SpeedST']
                     ].copy()
 
-                    df_laps = pd.merge(df_laps, results, on="Driver", how="left")
-                    df_laps = df_laps.rename(columns={'Team': 'Team_Name'})
+                    df_laps = df_laps.rename(columns={'Team': 'TeamName'})
                     df_laps['FreshTyre'] = df_laps['FreshTyre'].astype(int)
                     df_laps['EventName'] = event_name
                     df_laps['Year'] = year
+                    df_laps['RoundNumber'] = round_number
                     df_laps['SessionType'] = session_type
                     df_laps['TrackTemp'] = dane_pogodowe['TrackTemp'].values
                     df_laps['Humidity'] = dane_pogodowe['Humidity'].values
