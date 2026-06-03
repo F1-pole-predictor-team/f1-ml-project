@@ -69,9 +69,9 @@ def download_all_sessions():
                     time.sleep(2)
 
                 except Exception as e:
-                    print(f"   Błąd (pomijam tę sesję): {e}")
+                    print(f"   Błąd pomijam tę sesję: {e}")
 
-    print("🏆 Pobieranie danych z całego sezonu zakończone!")
+    print("Pobieranie danych z całego sezonu zakończone")
 
 
 if __name__ == "__main__":

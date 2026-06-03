@@ -15,7 +15,7 @@ def download_multi_year_standings():
     all_standings_list = []
 
     for season in [2022, 2023, 2024, 2025]:
-        print(f"\n🏆 Pobieranie klasyfikacji dla sezonu {season}...")
+        print(f"Pobieranie klasyfikacji dla sezonu {season}")
 
         schedule = fastf1.get_event_schedule(season)
         total_rounds = schedule['RoundNumber'].max()
@@ -44,15 +44,15 @@ def download_multi_year_standings():
             except Exception as e:
                 print(f" Błąd w rundzie {round_to_check}: {e}")
 
-    print("\n⏳ Łączenie i zapisywanie danych do bazy (to potrwa sekundę)...")
+    print("Łączenie i zapisywanie danych do bazy")
 
     # 3. Sklejamy wszystkie małe tabelki z koszyka w jedną wielką
     final_df = pd.concat(all_standings_list, ignore_index=True)
 
-    # 4. Zapisujemy wszystko do bazy za jednym razem (z replace, żeby wyczyścić ewentualne śmieci)
+    # 4. Zapisujemy wszystko do bazy za jednym razem z replace, żeby wyczyścić ewentualne śmieci
     final_df.to_sql('driver_standings', con=engine, if_exists='replace', index=False)
 
-    print("✅ Wszystkie sezony zrzucone perfekcyjnie!")
+    print("Wszystkie sezony zrzucone perfekcyjnie")
 
 
 if __name__ == "__main__":

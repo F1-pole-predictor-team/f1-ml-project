@@ -48,7 +48,7 @@ def big_table():
             raw_laps["DriverBestLap"] - raw_laps["MinLapTime"]
     )
 
-    # --- 3. POJEDYNEK W WEWNĄTRZZESPOŁOWY (Teammate Delta) ---
+    #  POJEDYNEK W WEWNĄTRZZESPOŁOWY
     # Najszybszy czas wewnątrz każdego zespołu w danej sesji
     raw_laps["MinTeamTime"] = raw_laps.groupby(
         ["Year", "EventName", "SessionType", "TeamName"]
@@ -59,18 +59,19 @@ def big_table():
             raw_laps["DriverBestLap"] - raw_laps["MinTeamTime"]
     )
 
-    # --- 4. KONFIGURACJA I TYPY TORÓW (One-Hot Encoding) ---
+    # KONFIGURACJA I TYPY TORÓW (One-Hot Encoding)
     # Mapowanie charakterystyki toru ze słownika i zamiana na kolumny 0/1
     raw_laps["TrackType"] = raw_laps["EventName"].map(TRACK_TYPES)
     raw_laps = pd.get_dummies(
         raw_laps, columns=["TrackType"], prefix="Track", dtype="int"
     )
 
-    # --- 5. TEORETYCZNE OKRĄŻENIE (Ideal Pace) ---
+    # TEORETYCZNE OKRĄŻENIE (Ideal Pace)
     # Wyciągamy najlepsze pojedyncze sektory kierowcy z całej sesji
     group_driver = ["Year", "EventName", "SessionType", "Driver"]
     raw_laps["Best_S1"] = raw_laps.groupby(group_driver)[
         "Sector1Time"
+
     ].transform("min")
     raw_laps["Best_S2"] = raw_laps.groupby(group_driver)[
         "Sector2Time"
@@ -94,13 +95,13 @@ def big_table():
             raw_laps["DriverTheoBest"] - raw_laps["TheoSessionBest"]
     )
 
-    # --- 6. MAKSYMALNA PRĘDKOŚĆ (Speedtrap Pace) ---
+    #MAKSYMALNA PRĘDKOŚĆ (Speedtrap Pace)
     # Wyciągamy najwyższą prędkość osiągniętą przez kierowcę na punkcie pomiarowym
     raw_laps["MaxSpeedST"] = raw_laps.groupby(["Year", "EventName", "Driver"])[
         "SpeedST"
     ].transform("max")
 
-    # --- 7. HISTORIA I MOMENTUM PUNKTOWE (Zabezpieczenie przed przerwami) ---
+    # --- 7. HISTORIA I MOMENTUM PUNKTOWE
     def add_clean_round(df):
         """Generuje ciągłą, chronologiczną sekwencję rund (1, 2, 3...) dla
 
@@ -178,7 +179,7 @@ def big_table():
     constructor_st["Year"] = constructor_st["season"]
     constructor_st["NextCleanRound"] = constructor_st["CleanRound"] + 1
 
-    # Mapowanie nazw zespołów z FastF1 na małe slugi z bazy SQL (tłumacz)
+    # Mapowanie nazw zespołów z FastF1 na małe slugi z bazy SQL
     raw_laps["TeamSlug"] = raw_laps["TeamName"].map(TEAM_NAME_MAP)
     constructor_st = constructor_st.rename(columns={"TeamName": "TeamSlug"})
 
@@ -193,7 +194,7 @@ def big_table():
     ).drop(columns=["NextCleanRound"])
     raw_laps["team_points_last_3"] = raw_laps["team_points_last_3"].fillna(0)
 
-    # --- 8. WARUNKI ATMOSFERYCZNE (Pogoda) ---
+    #  WARUNKI ATMOSFERYCZNE
     # Flaga deszczu: Jeśli w jakiejkolwiek minucie weekendu Rainfall > 0 -> 1, else 0
     raw_laps["WeekendRainFlag"] = (
         raw_laps.groupby(["Year", "EventName"])["Rainfall"]
@@ -226,7 +227,7 @@ def big_table():
         raw_laps.groupby(["Year", "EventName"])["TrackTemp"].transform("mean")
     )
 
-    # --- 9. CZYSZCZENIE DUPLIKATÓW (Gilotyna) ---
+    #  CZYSZCZENIE DUPLIKATÓW
     # Sortujemy, aby na samej górze były absolutnie najlepsze czasy sesji
     raw_laps = raw_laps.sort_values(
         ["Year", "EventName", "Driver", "SessionType", "SessionRank"]
@@ -236,7 +237,7 @@ def big_table():
         subset=["Year", "EventName", "Driver", "SessionType"], keep="first"
     ).copy()
 
-    # --- 10. MOMENTUM KWALIFIKACYJNE (Recent Q Form) ---
+    #  MOMENTUM KWALIFIKACYJNE (Recent Q Form)
     # Wyciągamy historyczne pozycje wyłącznie z kwalifikacji (Q) do obliczenia średniej
     qualy_history = best_laps[best_laps["SessionType"] == "Q"][
         ["Year", "EventName", "Driver", "SessionRank", "RoundNumber"]
@@ -251,8 +252,7 @@ def big_table():
         best_laps, qualy_history, on=["Year", "EventName", "Driver"], how="left"
     )
 
-    # --- 11. AGREGACJA DO STRUKTURY SZEROKIEJ (Pivot Table) ---
-    # Dynamicznie wychwytujemy kolumny One-Hot torów, żeby nie wpisywać ich z palca
+    #AGREGACJA DO STRUKTURY SZEROKIEJ (Pivot Table)
     track_cols = [
         col for col in best_laps.columns if str(col).startswith("Track_")
     ]
@@ -277,7 +277,7 @@ def big_table():
     pivot_table.columns = [f"{col[0]}_{col[1]}" for col in pivot_table.columns]
     pivot_table = pivot_table.reset_index()
 
-    # --- 12. PODRÓŻ W CZASIE (Wyniki z poprzedniego roku) ---
+    #Wyniki z poprzedniego roku
     # Wyciągamy czysty wynik z kwalifikacji zeszłego roku i przesuwamy oś czasu o +1
     q_last_year = best_laps[best_laps["SessionType"] == "Q"][
         ["Year", "EventName", "Driver", "SessionRank", "DeltaToLeader"]

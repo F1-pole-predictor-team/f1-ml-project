@@ -14,7 +14,7 @@ def download_constructor_standings():
     all_standings_list = []
 
     for season in [2022, 2023, 2024, 2025]:
-        print(f"🏎️ Pobieranie klasyfikacji konstruktorów dla sezonu {season}...")
+        print(f"Pobieranie klasyfikacji konstruktorów dla sezonu {season}")
 
         schedule = fastf1.get_event_schedule(season)
         total_rounds = schedule['RoundNumber'].max()
@@ -44,14 +44,14 @@ def download_constructor_standings():
             except Exception as e:
                 print(f" Błąd w rundzie {round_to_check}: {e}")
 
-    print("⏳ Sklejanie i zapisywanie do bazy...")
+    print("Sklejanie i zapisywanie do bazy")
 
     if all_standings_list:
         final_df = pd.concat(all_standings_list, ignore_index=True)
         final_df.to_sql('constructor_standings', con=engine, if_exists='replace', index=False)
-        print("✅ Klasyfikacja konstruktorów zapisana!")
+        print("Klasyfikacja konstruktorów zapisana!")
     else:
-        print("❌ Coś poszło nie tak, koszyk jest pusty.")
+        print("Coś poszło nie tak, koszyk jest pusty.")
 
 
 if __name__ == "__main__":
