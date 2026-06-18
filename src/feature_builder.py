@@ -183,7 +183,7 @@ def big_table():
     raw_laps["TeamSlug"] = raw_laps["TeamName"].map(TEAM_NAME_MAP)
     constructor_st = constructor_st.rename(columns={"TeamName": "TeamSlug"})
 
-    # Merge punktów konstruktora
+    # Merge punktów konstruktorow
     raw_laps = raw_laps.merge(
         constructor_st[
             ["Year", "NextCleanRound", "TeamSlug", "team_points_last_3"]
